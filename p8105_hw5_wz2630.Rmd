@@ -63,7 +63,11 @@ spaghetti_plot =
   ggplot(aes(week, value, color = subject_id)) + 
   geom_line() + 
   facet_wrap(~arm) + 
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom") +
+  labs(x = 'Week', 
+       y = 'Value', 
+       title = 'Spaghetti Plot',
+       color = "Subject ID")
 
 spaghetti_plot
 ```
@@ -77,12 +81,63 @@ Since we are asked to compare between the 2 groups, I applied facet_wrap to bett
 ## Problem 3
 
 Simulation to explore power in a one-sample t-test
+
+* Fix n=30
+* Fix σ=5
+
 ```{r}
 set.seed(123)
 
-#sim_t_test = function(n = 30, mu = 0, sigma = 5) 
+sim_t_test = function(n, mu = 0, sigma = 5) {
+  
+    sim_data = tibble( x = rnorm(n, mean = mu, sd = sigma))
+    
+    t_test_output = broom::tidy(t.test(sim_data))
+
+    t_test_output |> 
+      select(estimate, p.value)
+}
+
+t_test_output = tibble(
+  sample_size = 30,
+  iter = 1:5000
+) |>
+  mutate(estimate_t_test = map(sample_size, sim_t_test)) |>
+  unnest(estimate_t_test)
+```
+
+Repeat the above for μ={1,2,3,4,5,6}
+```{r}
+set.seed(12)
+
+sim_t_test = function(n, mu, sigma = 5) {
+  
+    sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma)
+    )
+    
+    t_test_output = broom::tidy(t.test(sim_data))
+
+    t_test_output |> 
+      select(estimate, p.value)
+}
+
+t_test_output_2 = expand_grid(
+  mu_value = c(1, 2, 3, 4, 5, 6),
+  sample_size = 30,
+  iter = 1:5000
+) |>
+  mutate(estimate_t = map(mu_value, ~sim_t_test(n = sample_size, mu = .))) |>
+  unnest(estimate_t)
+```
+
+**(a)** Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. Describe the association between effect size and power.
+```{r}
 
 ```
+
+
+
 
 
 
