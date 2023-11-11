@@ -64,17 +64,14 @@ spaghetti_plot =
   geom_line() + 
   facet_wrap(~arm) + 
   theme(legend.position = "bottom") +
-  labs(x = 'Week', 
-       y = 'Value', 
-       title = 'Spaghetti Plot',
-       color = "Subject ID")
+  labs(x = 'Week', y = 'Observation', title = 'Spaghetti Plot', color = "Subject ID")
 
 spaghetti_plot
 ```
 
 **Comments:**
 
-Since we are asked to compare between the 2 groups, I applied facet_wrap to better visualize it. The control arm have overall lower values throughout the 8 weeks as compared to the experimental arm. There seems to be an increasing trend in the experimental arm as time passes.
+Since we are asked to compare between the 2 groups, I applied facet_wrap to better visualize it. The control arm have overall lower values throughout the 8 weeks as compared to the experimental arm which has an overall increasing trend. The control arm has much more variability and fluctuations throughout the 8 weeks with no apparent trend.
 
 
 
@@ -85,62 +82,106 @@ Simulation to explore power in a one-sample t-test
 * Fix n=30
 * Fix σ=5
 
+**Simulation 1**
+
 ```{r}
 set.seed(123)
 
-sim_t_test = function(n, mu = 0, sigma = 5) {
-  
-    sim_data = tibble( x = rnorm(n, mean = mu, sd = sigma))
-    
-    t_test_output = broom::tidy(t.test(sim_data))
-
-    t_test_output |> 
-      select(estimate, p.value)
+# generate function for simulation
+sim_t_test = function(n = 30, mu, sd = 5) {
+  x_vec = rnorm(n, mu, sd)
+  t.test(x_vec) |> 
+  broom::tidy() |> 
+  select(mu_hat = estimate, p_value = p.value)
 }
-
-t_test_output = tibble(
-  sample_size = 30,
-  iter = 1:5000
-) |>
-  mutate(estimate_t_test = map(sample_size, sim_t_test)) |>
-  unnest(estimate_t_test)
 ```
 
-Repeat the above for μ={1,2,3,4,5,6}
-```{r}
-set.seed(12)
-
-sim_t_test = function(n, mu, sigma = 5) {
-  
-    sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma)
-    )
-    
-    t_test_output = broom::tidy(t.test(sim_data))
-
-    t_test_output |> 
-      select(estimate, p.value)
-}
-
-t_test_output_2 = expand_grid(
-  mu_value = c(1, 2, 3, 4, 5, 6),
-  sample_size = 30,
-  iter = 1:5000
-) |>
-  mutate(estimate_t = map(mu_value, ~sim_t_test(n = sample_size, mu = .))) |>
-  unnest(estimate_t)
-```
-
-**(a)** Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. Describe the association between effect size and power.
+μ = 0
 ```{r}
 
+output = vector("list", length = 5000)
+
+for (i in 1:5000) {
+  output[[i]] = sim_t_test(mu = 0)
+}
+
+# simulation result
+t_test_result =
+  bind_rows(output)
+
 ```
 
+**Simulation 2**
+Repeat the above for μ = {1,2,3,4,5,6}
+```{r}
 
+more_ttest_sim = 
+  expand_grid(mu_vals = c(1, 2, 3, 4, 5, 6), 
+              iter = 1:5000) |> 
+  mutate(estimates_data = map(mu_vals, ~sim_t_test(n = 30, mu = .))) |> 
+  unnest(cols = c(estimates_data))
 
+```
 
+**Plot 1** 
 
+Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. Describe the association between effect size and power.
+```{r}
+plot1 = 
+  more_ttest_sim |> 
+    group_by(mu_vals) |> 
+    summarize(rejection_prob = sum(p_value < 0.05) / 5000) |> 
+    ggplot(aes(x = mu_vals, y = rejection_prob)) +
+    geom_point() + 
+    geom_line() + 
+    labs(x = 'μ values', y = 'Rejection Probability', title = 'Proportion of times the null was rejected') + 
+    scale_x_continuous(limits = c(1, 6), breaks = seq(1, 6, 1))
 
+plot1
+```
+
+**Plot 2** 
+
+Make a plot showing the average estimate of μ̂ on the y axis and the true value of μ on the x axis. 
+
+Make a second plot (or overlay on the first) the average estimate of μ̂ only in samples for which the null was rejected on the y axis and the true value of μ on the x axis.
+```{r}
+
+estimates_data <-
+  more_ttest_sim |> 
+  group_by(mu_vals) |> 
+  summarize(sample_mean_estimates = mean(mu_hat))
+
+estimates_rejection_df =
+  more_ttest_sim |> 
+  mutate(decision_rule = ifelse(p_value < 0.05, "reject", "fail to reject")) |> 
+  filter(decision_rule == "reject") |> 
+  group_by(mu_vals, decision_rule) |> 
+  summarize(sample_mean_estimates = mean(mu_hat))
+```
+
+```{r}
+plot2 = 
+  ggplot() + 
+  geom_point(data = estimates_data, aes(x = mu_vals, y = sample_mean_estimates, color = "True Estimate")) + 
+  geom_line(data = estimates_data, aes(x = mu_vals, y = sample_mean_estimates, color = "True Estimate")) +
+  geom_line(data = estimates_rejection_df, 
+            aes(x = mu_vals, y = sample_mean_estimates, color = "Rejected Estimates")) + 
+  geom_point(data = estimates_rejection_df, 
+             aes(x = mu_vals, y = sample_mean_estimates, color = "Rejected Estimates")) + 
+  labs(x = 'True μ values', y = 'Sample Mean μ Estimates', 
+       title = 'Rejected Average Estimates of μ vs. True μ', color = "Color Coding:") + 
+  scale_color_manual(values = c("Rejected Estimates" = "tomato", "True Estimate" = "darkgreen")) + 
+  scale_x_continuous(limits = c(1, 6), breaks = seq(1, 6, 1)) + 
+  theme(legend.position = "bottom")
+  
+plot2
+
+```
+
+**Is the sample average of μ̂ across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?**
+
+When the true mean is less than 4, the rejected sample mean mus are different compared to the true means because effect size and power is small. However, when the mean is 4 or larger, the rejected sample mean mus are about the same as the true mu because both effect size and power are larger.
 
 
 
