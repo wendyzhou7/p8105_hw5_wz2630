@@ -1,7 +1,6 @@
 ---
 title: "P8105_hw5_wz2630"
 output: github_document
-date: 2023-11-15
 ---
 ```{r message=FALSE, warning=FALSE}
 # Intall packages
@@ -12,11 +11,11 @@ library(ggplot2)
 
 ```
 
-## Problem 1 
+# Problem 1 
 (not graded)
 
 
-## Problem 2
+# Problem 2
 
 Longitudinal study 
 
@@ -74,7 +73,7 @@ Since we are asked to compare between the 2 arms (control and experimental), I a
 
 
 
-## Problem 3
+# Problem 3
 
 Simulation to explore power in a one-sample t-test
 
@@ -114,14 +113,14 @@ Repeat the above for μ = {1,2,3,4,5,6}
 ```{r}
 
 more_ttest_sim = 
-  expand_grid(mu_vals = c(1, 2, 3, 4, 5, 6), 
+  expand_grid(mu_vals = c(0, 1, 2, 3, 4, 5, 6), 
               iter = 1:5000) |> 
   mutate(estimates_data = map(mu_vals, ~sim_t_test(n = 30, mu = .))) |> 
   unnest(cols = c(estimates_data))
 
 ```
 
-**Plot 1** 
+## Plot 1
 
 Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis.
 ```{r}
@@ -133,7 +132,7 @@ plot1 =
     geom_point() + 
     geom_line() + 
     labs(x = 'True Mean (μ)', y = 'Rejection Probability', title = 'Proportion of times the null was rejected') + 
-    scale_x_continuous(limits = c(1, 6), breaks = seq(1, 6, 1))
+    scale_x_continuous(limits = c(0, 6), breaks = seq(0, 6, 1))
 
 plot1
 ```
@@ -145,7 +144,7 @@ The graph demonstrates a positive association  -- as true mu values increase, th
 
 
 
-**Plot 2** 
+## Plot 2 
 
 Make a plot showing the average estimate of μ̂ on the y axis and the true value of μ on the x axis. 
 
@@ -177,7 +176,7 @@ plot2 =
   labs(x = 'True Mean (μ)', y = 'Sample Mean (μ) Estimates', 
        title = 'Rejected Average μ vs. True μ', color = "Color Coding:") + 
   scale_color_manual(values = c("Rejected Estimates" = "tomato", "True Estimate" = "darkgreen")) + 
-  scale_x_continuous(limits = c(1, 6), breaks = seq(1, 6, 1)) + 
+  scale_x_continuous(limits = c(0, 6), breaks = seq(0, 6, 1)) + 
   theme(legend.position = "bottom")
   
 plot2
